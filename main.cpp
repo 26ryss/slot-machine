@@ -27,6 +27,7 @@ void glut_motion(int x, int y);
 
 void draw_pyramid();
 void draw_cell(int reel_num);
+void glut_idle();
 void set_texture();
 
 // グローバル変数
@@ -84,6 +85,7 @@ void set_callback_functions(){
 	glutMouseFunc(glut_mouse);
 	glutMotionFunc(glut_motion);
 	glutPassiveMotionFunc(glut_motion);
+  glutIdleFunc(glut_idle);
 }
 
 void glut_keyboard(unsigned char key, int x, int y){
@@ -187,6 +189,19 @@ void glut_display(){
 	glDisable(GL_DEPTH_TEST);
 
 	glutSwapBuffers();
+}
+
+void glut_idle(){
+  static int counter = 0;
+
+  if (counter == 3){
+    reel[0] = (reel[0] - 1 + 21) % 21;
+    reel[1] = (reel[1] - 1 + 21) % 21;
+    reel[2] = (reel[2] - 1 + 21) % 21;
+    counter = -1;
+  }
+  counter++;
+  glutPostRedisplay();
 }
 
 void draw_cell(int reel_num) {
