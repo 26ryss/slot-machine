@@ -27,6 +27,7 @@ void glut_motion(int x, int y);
 
 void draw_pyramid();
 void draw_cell(int reel_num);
+void draw_machine();
 void glut_idle();
 void set_texture();
 
@@ -34,10 +35,12 @@ void set_texture();
 double g_angle1 = 0.0;
 double g_angle2 = 0.0;
 double g_distance = 30.0;
-double cell_size = 2.5;
+double cell_width = 2.5;
+double cell_height = cell_width * 2 / 3;
 bool g_isLeftButtonOn = false;
 bool g_isRightButtonOn = false;
 int reel[3] = {0, 5, 9};
+bool is_reeling[3] = {true, true, true};
 GLuint g_TextureHandles[7] = {0, 0, 0, 0, 0, 0, 0};
 
 int main(int argc, char *argv[]){
@@ -94,6 +97,21 @@ void glut_keyboard(unsigned char key, int x, int y){
 	case 'Q':
 	case '\033':
 		exit(0);
+  case '1':
+    is_reeling[0] = !is_reeling[0];
+    break;
+  case '2':
+    is_reeling[1] = !is_reeling[1];
+    break;
+  case '3':
+    is_reeling[2] = !is_reeling[2];
+    break;
+  case '4':
+    if (!is_reeling[0] && !is_reeling[1] && !is_reeling[2]){
+      is_reeling[0] = true;
+      is_reeling[1] = true;
+      is_reeling[2] = true;
+    }
 	}
 	glutPostRedisplay();
 }
@@ -178,12 +196,16 @@ void glut_display(){
       }
 
       glPushMatrix();
-      glTranslatef(cell_size * i, 0.0, 0.0);
-      glTranslatef(0.0, (cell_size * 2 / 3) * j, 0.0);
+      glTranslatef(cell_width * i, 0.0, 0.0);
+      glTranslatef(0.0, (cell_width * 2 / 3) * j, 0.0);
       draw_cell(reel_num);
       glPopMatrix();
     }
   }
+
+  glPushMatrix();
+  draw_machine();
+  glPopMatrix();
 
 	glFlush();
 	glDisable(GL_DEPTH_TEST);
@@ -194,10 +216,10 @@ void glut_display(){
 void glut_idle(){
   static int counter = 0;
 
-  if (counter == 3){
-    reel[0] = (reel[0] - 1 + 21) % 21;
-    reel[1] = (reel[1] - 1 + 21) % 21;
-    reel[2] = (reel[2] - 1 + 21) % 21;
+  if (counter == 2){
+    if (is_reeling[0]) reel[0] = (reel[0] - 1 + 21) % 21;
+    if (is_reeling[1]) reel[1] = (reel[1] - 1 + 21) % 21;
+    if (is_reeling[2]) reel[2] = (reel[2] - 1 + 21) % 21;
     counter = -1;
   }
   counter++;
@@ -205,8 +227,8 @@ void glut_idle(){
 }
 
 void draw_cell(int reel_num) {
-  double half = cell_size / 2;
-  double one_third = cell_size / 3;
+  double half = cell_width / 2;
+  double one_third = cell_width / 3;
 
   glColor3d(1.0, 1.0, 1.0);
 
@@ -219,6 +241,50 @@ void draw_cell(int reel_num) {
   glTexCoord2d(0.0, 0.0); glVertex3d(-half, one_third, 0.0);
   glEnd();
   glDisable(GL_TEXTURE_2D);
+}
+
+void draw_machine() {
+  double width = cell_width * 3;
+  double height = cell_height * 3;
+  double offset_x = 3.0;
+  double offset_y = 2.0;
+
+  // top board
+  glColor3d(1.0, 0.0, 0.0);
+  glBegin(GL_POLYGON);
+  glVertex3d(-width / 2, cell_height * 1.5, 0.5);
+  glVertex3d(width / 2, cell_height * 1.5, 0.5);
+  glVertex3d(width / 2, cell_height * 1.5 + offset_y, 0.5);
+  glVertex3d(-width / 2, cell_height * 1.5 + offset_y, 0.5);
+  glEnd();
+
+  // bottom board
+  glColor3d(1.0, 0.0, 0.0);
+  glBegin(GL_POLYGON);
+  glVertex3d(-width / 2, -cell_height * 1.5 - offset_y, 0.5);
+  glVertex3d(width / 2, -cell_height * 1.5 - offset_y, 0.5);
+  glVertex3d(width / 2, -cell_height * 1.5, 0.5);
+  glVertex3d(-width / 2, -cell_height * 1.5, 0.5);
+  glEnd();
+
+  // left board
+  glColor3d(1.0, 0.0, 0.0);
+  glBegin(GL_POLYGON);
+  glVertex3d(-width / 2 - offset_x, cell_height * 1.5 + offset_y, 0.5);
+  glVertex3d(-width / 2, cell_height * 1.5 + offset_y, 0.5);
+  glVertex3d(-width / 2, -cell_height * 1.5 - offset_y, 0.5);
+  glVertex3d(-width / 2 - offset_x, -cell_height * 1.5 - offset_y, 0.5);
+  glEnd();
+
+  // right board
+  glColor3d(1.0, 0.0, 0.0);
+  glBegin(GL_POLYGON);
+  glVertex3d(width / 2 + offset_x, cell_height * 1.5 + offset_y, 0.5);
+  glVertex3d(width / 2, cell_height * 1.5 + offset_y, 0.5);
+  glVertex3d(width / 2, -cell_height * 1.5 - offset_y, 0.5);
+  glVertex3d(width / 2 + offset_x, -cell_height * 1.5 - offset_y, 0.5);
+  glEnd();
+
 }
 
 void set_texture() {
