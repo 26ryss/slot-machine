@@ -2,10 +2,19 @@
 #include <stdlib.h>
 #include <math.h>
 #include <GLUT/glut.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #define WINDOW_X (1200)
 #define WINDOW_Y (1000)
 #define WINDOW_NAME "SLOT MACHINE"
+#define TEXTURE_WIDTH (360)
+#define TEXTURE_HEIGHT (150)
+
+const int reel1_dict[21] = {5, 0, 2, 3, 2, 4, 1, 4, 3, 2, 3, 0, 6, 3, 2, 3, 4, 2, 3, 2, 3};
+const int reel2_dict[21] = {2, 0, 3, 4, 6, 2, 1, 3, 4, 2, 5, 3, 4, 2, 1, 3, 4, 2, 5, 3, 4};
+const int reel3_dict[21] = {3, 0, 1, 5, 2, 3, 6, 5, 2, 3, 6, 5, 2, 3, 6, 5, 2, 3, 6, 5, 2};
 
 void init_GL(int argc, char *argv[]);
 void init();
@@ -17,7 +26,8 @@ void glut_mouse(int button, int state, int x, int y);
 void glut_motion(int x, int y);
 
 void draw_pyramid();
-void draw_cell();
+void draw_cell(int reel_num);
+void set_texture();
 
 // グローバル変数
 double g_angle1 = 0.0;
@@ -26,6 +36,8 @@ double g_distance = 30.0;
 double cell_size = 2.5;
 bool g_isLeftButtonOn = false;
 bool g_isRightButtonOn = false;
+int reel[3] = {0, 5, 9};
+GLuint g_TextureHandles[7] = {0, 0, 0, 0, 0, 0, 0};
 
 int main(int argc, char *argv[]){
 	/* OpenGLの初期化 */
@@ -53,6 +65,17 @@ void init_GL(int argc, char *argv[]){
 
 void init(){
 	glClearColor(0.0, 0.0, 0.0, 0.0);         // 背景の塗りつぶし色を指定
+  glGenTextures(7, g_TextureHandles);
+
+  for(int i = 0; i < 7; i++){
+    glBindTexture(GL_TEXTURE_2D, g_TextureHandles[i]);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  }
+
+  set_texture();
 }
 
 void set_callback_functions(){
@@ -135,13 +158,27 @@ void glut_display(){
 	glEnable(GL_DEPTH_TEST);
 
   // draw reel
+  int reel_num;
   for (int i = -1; i < 2; i++){
     for (int j = -1; j < 2; j++){
+      if (i == -1){
+        if (j == 1) reel_num = reel1_dict[reel[0]];
+        else if (j == 0) reel_num = reel1_dict[(reel[0] + 1) % 21];
+        else if (j == -1) reel_num = reel1_dict[(reel[0] + 2) % 21];
+      } else if (i == 0) {
+        if (j == 1) reel_num = reel2_dict[reel[1]];
+        else if (j == 0) reel_num = reel2_dict[(reel[1] + 1) % 21];
+        else if (j == -1) reel_num = reel2_dict[(reel[1] + 2) % 21];
+      } else {
+        if (j == 1) reel_num = reel3_dict[reel[2]];
+        else if (j == 0) reel_num = reel3_dict[(reel[2] + 1) % 21];
+        else if (j == -1) reel_num = reel3_dict[(reel[2] + 2) % 21];
+      }
+
       glPushMatrix();
       glTranslatef(cell_size * i, 0.0, 0.0);
       glTranslatef(0.0, (cell_size * 2 / 3) * j, 0.0);
-      glColor3f(1.0, 1.0, 1.0);
-      draw_cell();
+      draw_cell(reel_num);
       glPopMatrix();
     }
   }
@@ -152,14 +189,37 @@ void glut_display(){
 	glutSwapBuffers();
 }
 
-void draw_cell() {
+void draw_cell(int reel_num) {
   double half = cell_size / 2;
   double one_third = cell_size / 3;
 
+  glColor3d(1.0, 1.0, 1.0);
+
+  glBindTexture(GL_TEXTURE_2D, g_TextureHandles[reel_num]);
+  glEnable(GL_TEXTURE_2D);
   glBegin(GL_QUADS);
-  glVertex3d(-half, -one_third, 0.0);
-  glVertex3d(half, -one_third, 0.0);
-  glVertex3d(half, one_third, 0.0);
-  glVertex3d(-half, one_third, 0.0);
+  glTexCoord2d(0.0, 1.0); glVertex3d(-half, -one_third, 0.0);
+  glTexCoord2d(1.0, 1.0); glVertex3d(half, -one_third, 0.0);
+  glTexCoord2d(1.0, 0.0); glVertex3d(half, one_third, 0.0);
+  glTexCoord2d(0.0, 0.0); glVertex3d(-half, one_third, 0.0);
   glEnd();
+  glDisable(GL_TEXTURE_2D);
+}
+
+void set_texture() {
+  const char *inputFileNames[7] = {
+    "img/seven.png",
+    "img/bar.png",
+    "img/tiger.png",
+    "img/grape.png",
+    "img/cherry.png",
+    "img/bell.png",
+    "img/clown.png",
+  };
+  for (int i = 0; i < 7; i++){
+    cv::Mat input = cv::imread(inputFileNames[i], 1);
+
+    glBindTexture(GL_TEXTURE_2D, g_TextureHandles[i]);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, (TEXTURE_WIDTH - input.cols) / 2, (TEXTURE_HEIGHT - input.rows) / 2, input.cols, input.rows, GL_BGR, GL_UNSIGNED_BYTE, input.data);
+  }
 }
