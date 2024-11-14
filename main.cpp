@@ -1,16 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <random>
+#include <ctime>
 #include <GLUT/glut.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
 #define WINDOW_X (1200)
-#define WINDOW_Y (1000)
+#define WINDOW_Y (800)
 #define WINDOW_NAME "SLOT MACHINE"
 #define TEXTURE_WIDTH (360)
 #define TEXTURE_HEIGHT (150)
+
+std::mt19937 rng(static_cast<unsigned int>(std::time(0))); // 乱数生成器を初期化
+std::uniform_real_distribution<double> dist(0.0, 1.0); // 0.0から1.0までの一様分布
 
 const int reel1_dict[21] = {5, 0, 2, 3, 2, 4, 1, 4, 3, 2, 3, 0, 6, 3, 2, 3, 4, 2, 3, 2, 3};
 const int reel2_dict[21] = {2, 0, 3, 4, 6, 2, 1, 3, 4, 2, 5, 3, 4, 2, 1, 3, 4, 2, 5, 3, 4};
@@ -40,8 +45,9 @@ double cell_height = cell_width * 2 / 3;
 bool g_isLeftButtonOn = false;
 bool g_isRightButtonOn = false;
 int reel[3] = {0, 5, 9};
-bool is_reeling[3] = {true, true, true};
-GLuint g_TextureHandles[7] = {0, 0, 0, 0, 0, 0, 0};
+bool is_reeling[3] = {false, false, false};
+bool is_gogo = false;
+GLuint g_TextureHandles[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 int main(int argc, char *argv[]){
 	/* OpenGLの初期化 */
@@ -79,6 +85,13 @@ void init(){
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   }
 
+  // gogo
+  glBindTexture(GL_TEXTURE_2D, g_TextureHandles[7]);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 200, 150, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
   set_texture();
 }
 
@@ -98,13 +111,14 @@ void glut_keyboard(unsigned char key, int x, int y){
 	case '\033':
 		exit(0);
   case '1':
-    is_reeling[0] = !is_reeling[0];
+    if(is_reeling[0])is_reeling[0] = false;
     break;
   case '2':
-    is_reeling[1] = !is_reeling[1];
+    if(is_reeling[1])is_reeling[1] = false;
     break;
   case '3':
-    is_reeling[2] = !is_reeling[2];
+    if(is_reeling[2])is_reeling[2] = false;
+    if (dist(rng) < 0.1) is_gogo = true;
     break;
   case '4':
     if (!is_reeling[0] && !is_reeling[1] && !is_reeling[2]){
@@ -112,6 +126,10 @@ void glut_keyboard(unsigned char key, int x, int y){
       is_reeling[1] = true;
       is_reeling[2] = true;
     }
+    break;
+  case '5':
+    is_gogo = !is_gogo;
+    break;
 	}
 	glutPostRedisplay();
 }
@@ -248,9 +266,11 @@ void draw_machine() {
   double height = cell_height * 3;
   double offset_x = 3.0;
   double offset_y = 2.0;
+  GLdouble body_color[3] = {0.941, 0.157, 0.314};
+  GLdouble silver[3] = {0.753, 0.753, 0.753};
 
   // top board
-  glColor3d(1.0, 0.0, 0.0);
+  glColor3d(body_color[0], body_color[1], body_color[2]);
   glBegin(GL_POLYGON);
   glVertex3d(-width / 2, cell_height * 1.5, 0.5);
   glVertex3d(width / 2, cell_height * 1.5, 0.5);
@@ -259,7 +279,7 @@ void draw_machine() {
   glEnd();
 
   // bottom board
-  glColor3d(1.0, 0.0, 0.0);
+  glColor3d(body_color[0], body_color[1], body_color[2]);
   glBegin(GL_POLYGON);
   glVertex3d(-width / 2, -cell_height * 1.5 - offset_y, 0.5);
   glVertex3d(width / 2, -cell_height * 1.5 - offset_y, 0.5);
@@ -268,7 +288,7 @@ void draw_machine() {
   glEnd();
 
   // left board
-  glColor3d(1.0, 0.0, 0.0);
+  glColor3d(body_color[0], body_color[1], body_color[2]);
   glBegin(GL_POLYGON);
   glVertex3d(-width / 2 - offset_x, cell_height * 1.5 + offset_y, 0.5);
   glVertex3d(-width / 2, cell_height * 1.5 + offset_y, 0.5);
@@ -277,7 +297,7 @@ void draw_machine() {
   glEnd();
 
   // right board
-  glColor3d(1.0, 0.0, 0.0);
+  glColor3d(body_color[0], body_color[1], body_color[2]);
   glBegin(GL_POLYGON);
   glVertex3d(width / 2 + offset_x, cell_height * 1.5 + offset_y, 0.5);
   glVertex3d(width / 2, cell_height * 1.5 + offset_y, 0.5);
@@ -285,10 +305,94 @@ void draw_machine() {
   glVertex3d(width / 2 + offset_x, -cell_height * 1.5 - offset_y, 0.5);
   glEnd();
 
+  // stand
+  glColor3d(0.2, 0.2, 0.2);
+  glBegin(GL_POLYGON);
+  glVertex3d(-width / 2 - offset_x, -cell_height * 1.5 - offset_y, 3.0);
+  glVertex3d(width / 2 + offset_x, -cell_height * 1.5 - offset_y, 3.0);
+  glVertex3d(width / 2 + offset_x, -cell_height * 1.5 - offset_y, 0.1);
+  glVertex3d(-width / 2 - offset_x, -cell_height * 1.5 - offset_y, 0.1);
+  glEnd();
+
+  // front
+  glColor3d(silver[0], silver[1], silver[2]);
+  glBegin(GL_POLYGON);
+  glVertex3d(-width / 2 - offset_x, -cell_height * 1.5 - offset_y - 3.0, 3.0);
+  glVertex3d(width / 2 + offset_x, -cell_height * 1.5 - offset_y - 3.0, 3.0);
+  glVertex3d(width / 2 + offset_x, -cell_height * 1.5 - offset_y, 3.0);
+  glVertex3d(-width / 2 - offset_x, -cell_height * 1.5 - offset_y, 3.0);
+  glEnd();
+
+  // front button area
+  glColor3d(0.0, 0.0, 0.0);
+  glBegin(GL_POLYGON);
+  glVertex3d(-width / 3, -cell_height * 1.5 - offset_y - 3.0, 3.01);
+  glVertex3d(width / 3, -cell_height * 1.5 - offset_y - 3.0, 3.01);
+  glVertex3d(width / 3, -cell_height * 1.5 - offset_y, 3.01);
+  glVertex3d(-width / 3, -cell_height * 1.5 - offset_y, 3.01);
+  glEnd();
+
+  // front button
+  for (int i = -1; i < 2; i++){
+    glPushMatrix();
+    glTranslatef(cell_width / 1.5 * i, -cell_height * 1.5 - offset_y - 1.5, 3.02);
+    glColor3d(silver[0], silver[1], silver[2]);
+    GLUquadric* quad = gluNewQuadric();
+    gluDisk(quad, 0.0, 0.5, 100, 1);
+    glPopMatrix();
+  }
+
+  // lever
+  glPushMatrix();
+  glColor3d(0.1, 0.1, 0.1);
+  glTranslatef(-width / 2, -cell_height * 1.5 - offset_y - 1.5, 4.0);
+  glutSolidSphere(0.5, 20, 20);
+  glPopMatrix();
+
+  // lever stick
+  glColor3f(0.6, 0.6, 0.6);
+  GLUquadric* quad = gluNewQuadric();
+  glPushMatrix();
+  glTranslatef(-width / 2, -cell_height * 1.5 - offset_y - 1.5, 3.0);
+  gluCylinder(quad, 0.1, 0.1, 1.0, 32, 32);
+  glPopMatrix();
+  gluDeleteQuadric(quad);
+
+  // gogo
+  if (is_gogo) {
+    glPushMatrix();
+    glTranslatef(0.0, -cell_height * 1.5 - offset_y / 2 , 0.6);
+    glColor3d(1.0, 1.0, 1.0);
+    glBindTexture(GL_TEXTURE_2D, g_TextureHandles[7]);
+    glEnable(GL_TEXTURE_2D);
+    GLUquadric* quad_pekari = gluNewQuadric();
+    gluQuadricTexture(quad_pekari, GL_TRUE);
+    gluDisk(quad_pekari, 0.0, 0.9, 100, 1);
+    gluDeleteQuadric(quad_pekari);
+    glDisable(GL_TEXTURE_2D);
+
+    glColor3d(1.0, 0.843, 0.0);
+    GLUquadric* quad_pekari2 = gluNewQuadric();
+    gluCylinder(quad, 1.0, 0.8, 0.15, 32, 32);
+    glPopMatrix();
+  } else {
+    glPushMatrix();
+    glTranslatef(0.0, -cell_height * 1.5 - offset_y / 2 , 0.6);
+    glColor3d(0.1, 0.1, 0.1);
+    GLUquadric* quad_pekari = gluNewQuadric();
+    gluQuadricTexture(quad_pekari, GL_TRUE);
+    gluDisk(quad_pekari, 0.0, 0.9, 100, 1);
+
+    glColor3d(1.0, 0.843, 0.0);
+    GLUquadric* quad_pekari2 = gluNewQuadric();
+    gluCylinder(quad, 1.0, 0.8, 0.15, 32, 32);
+    glPopMatrix();
+  }
+  
 }
 
 void set_texture() {
-  const char *inputFileNames[7] = {
+  const char *inputFileNames[8] = {
     "img/seven.png",
     "img/bar.png",
     "img/tiger.png",
@@ -296,6 +400,7 @@ void set_texture() {
     "img/cherry.png",
     "img/bell.png",
     "img/clown.png",
+    "img/gogo_r.png",
   };
   for (int i = 0; i < 7; i++){
     cv::Mat input = cv::imread(inputFileNames[i], 1);
@@ -303,4 +408,8 @@ void set_texture() {
     glBindTexture(GL_TEXTURE_2D, g_TextureHandles[i]);
     glTexSubImage2D(GL_TEXTURE_2D, 0, (TEXTURE_WIDTH - input.cols) / 2, (TEXTURE_HEIGHT - input.rows) / 2, input.cols, input.rows, GL_BGR, GL_UNSIGNED_BYTE, input.data);
   }
+
+  cv::Mat input = cv::imread(inputFileNames[7], 1);
+  glBindTexture(GL_TEXTURE_2D, g_TextureHandles[7]);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, (200 - input.cols) / 2, (150 - input.rows) / 2, input.cols, input.rows, GL_BGR, GL_UNSIGNED_BYTE, input.data);
 }
