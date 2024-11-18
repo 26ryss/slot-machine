@@ -41,6 +41,7 @@ void glut_idle();
 void set_texture();
 int calc_result(int* reel);
 int calc_score(int* comb);
+void play_sound(char* filename);
 
 // グローバル変数
 double g_angle1 = 0.0;
@@ -122,6 +123,7 @@ void glut_keyboard(unsigned char key, int x, int y){
   // left reel
   case '1':
     if(is_reeling[0]){
+      play_sound("sound/button.wav");
       if (machine_mode == 0) {
         is_reeling[0] = false;
       } else if (machine_mode == 1){
@@ -136,7 +138,8 @@ void glut_keyboard(unsigned char key, int x, int y){
 
   // center reel
   case '2':
-    if(is_reeling[1]){
+    if(is_reeling[1] && !is_reeling[0]){
+      play_sound("sound/button.wav");
       if (machine_mode == 0) {
         is_reeling[1] = false;
       } else if (machine_mode == 1){
@@ -151,21 +154,17 @@ void glut_keyboard(unsigned char key, int x, int y){
 
   // right reel
   case '3':
-    if(is_reeling[2]){
+    if(is_reeling[2] && !is_reeling[1]){
+      play_sound("sound/button.wav");
       if (machine_mode == 0) {
         is_reeling[2] = false;
         if (dist(rng) < 0.9) {
           machine_mode = 1;
-          char *filename = "sound/gogo.wav"; // ファイル名
-          alureInitDevice(NULL, NULL);
-          ALuint source;
-          alGenSources(1, &source); 
-          ALuint buffer = alureCreateBufferFromFile(filename);
-          alSourcei(source, AL_BUFFER, buffer);
-          alSourcePlay(source);
+          play_sound("sound/gogo.wav");
         }
         credit += calc_result(reel); 
       } else if (machine_mode == 1){
+        play_sound("sound/big.wav");
         is_reeling[2] = false;
         reel[2] = 0;
         // 777 -> bonus mode
@@ -187,7 +186,8 @@ void glut_keyboard(unsigned char key, int x, int y){
   
   // maxbet button
   case '4':
-    if (!is_reeling[0] && !is_reeling[1] && !is_reeling[2]){
+    if (!is_reeling[0] && !is_reeling[1] && !is_reeling[2] && is_bet == false && credit >= 3){
+      play_sound("sound/bet.wav");
       is_bet = true;
       credit -= 3;
     }
@@ -196,6 +196,7 @@ void glut_keyboard(unsigned char key, int x, int y){
   // pushdown lever
   case '5':
     if (is_bet){
+      play_sound("sound/lever.wav");
       is_reeling[0] = true;
       is_reeling[1] = true;
       is_reeling[2] = true;
@@ -540,6 +541,7 @@ Map between the index and reel image
 int calc_score(int* comb){
   int score = 0;
   if (comb[0] == comb[1] && comb[1] == comb[2]){
+    play_sound("sound/grape.wav");
     if (comb[0] == 2) score = 3;
     else if (comb[0] == 3) score = 14;
     else if (comb[0] == 5) score = 14;
@@ -591,4 +593,13 @@ int calc_result(int* reel){
     }
   }
   return score;
+}
+
+void play_sound(char* filename){
+  alureInitDevice(NULL, NULL);
+  ALuint source;
+  alGenSources(1, &source); 
+  ALuint buffer = alureCreateBufferFromFile(filename);
+  alSourcei(source, AL_BUFFER, buffer);
+  alSourcePlay(source);
 }
