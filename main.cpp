@@ -17,6 +17,7 @@
 #define WINDOW_NAME "SLOT MACHINE"
 #define TEXTURE_WIDTH (360)
 #define TEXTURE_HEIGHT (150)
+#define PROB (0.5)
 
 std::mt19937 rng(static_cast<unsigned int>(std::time(0))); // 乱数生成器を初期化
 std::uniform_real_distribution<double> dist(0.0, 1.0); // 0.0から1.0までの一様分布
@@ -158,7 +159,7 @@ void glut_keyboard(unsigned char key, int x, int y){
       play_sound("sound/button.wav");
       if (machine_mode == 0) {
         is_reeling[2] = false;
-        if (dist(rng) < 0.9) {
+        if (dist(rng) < PROB) {
           machine_mode = 1;
           play_sound("sound/gogo.wav");
         }
@@ -539,9 +540,9 @@ Map between the index and reel image
   6: clown
 */
 int calc_score(int* comb){
+  play_sound("sound/grape.wav");
   int score = 0;
   if (comb[0] == comb[1] && comb[1] == comb[2]){
-    play_sound("sound/grape.wav");
     if (comb[0] == 2) score = 3;
     else if (comb[0] == 3) score = 14;
     else if (comb[0] == 5) score = 14;
