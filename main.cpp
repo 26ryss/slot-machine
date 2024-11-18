@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
 #include <math.h>
 #include <random>
 #include <ctime>
@@ -35,6 +36,8 @@ void draw_cell(int reel_num);
 void draw_machine();
 void glut_idle();
 void set_texture();
+int calc_result(int* reel);
+int calc_score(int* comb);
 
 // グローバル変数
 double g_angle1 = 0.0;
@@ -44,9 +47,12 @@ double cell_width = 2.5;
 double cell_height = cell_width * 2 / 3;
 bool g_isLeftButtonOn = false;
 bool g_isRightButtonOn = false;
+int credit = 50;
 int reel[3] = {0, 5, 9};
+int machine_mode = 0; // 0: normal, 1: gogo, 2: bonus
+int bonus_count = 0;
+bool is_bet = false;
 bool is_reeling[3] = {false, false, false};
-bool is_gogo = false;
 GLuint g_TextureHandles[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 int main(int argc, char *argv[]){
@@ -111,24 +117,78 @@ void glut_keyboard(unsigned char key, int x, int y){
 	case '\033':
 		exit(0);
   case '1':
-    if(is_reeling[0])is_reeling[0] = false;
+    if(is_reeling[0]){
+      if (machine_mode == 0) {
+        is_reeling[0] = false;
+      } else if (machine_mode == 1){
+        is_reeling[0] = false;
+        reel[0] = 0;
+      } else {
+        is_reeling[0] = false;
+        reel[0] = 2;
+      }
+    }
     break;
   case '2':
-    if(is_reeling[1])is_reeling[1] = false;
+    if(is_reeling[1]){
+      if (machine_mode == 0) {
+        is_reeling[1] = false;
+      } else if (machine_mode == 1){
+        is_reeling[1] = false;
+        reel[1] = 0;
+      } else {
+        is_reeling[1] = false;
+        reel[1] = 1;
+      }
+    }
     break;
   case '3':
-    if(is_reeling[2])is_reeling[2] = false;
-    if (dist(rng) < 0.1) is_gogo = true;
+    if(is_reeling[2]){
+      if (machine_mode == 0) {
+        is_reeling[2] = false;
+        if (dist(rng) < 0.1) machine_mode = 1;
+        credit += calc_result(reel); 
+      } else if (machine_mode == 1){
+        is_reeling[2] = false;
+        reel[2] = 0;
+        // 777 -> bonus mode
+        machine_mode = 2;
+        bonus_count = 0;
+      } else {
+        is_reeling[2] = false;
+        reel[2] = 4;
+        credit += calc_result(reel); 
+        bonus_count += calc_result(reel);
+        if (bonus_count >= 290) {
+          machine_mode = 0;
+          bonus_count = 0;
+        }
+      }
+      std::cout << "credit: " << credit << '\n';
+    }
     break;
+  
+  // maxbet button
   case '4':
     if (!is_reeling[0] && !is_reeling[1] && !is_reeling[2]){
+      is_bet = true;
+      credit -= 3;
+    }
+    break;
+
+  // pushdown lever
+  case '5':
+    if (is_bet){
       is_reeling[0] = true;
       is_reeling[1] = true;
       is_reeling[2] = true;
+      is_bet = false;
     }
     break;
-  case '5':
-    is_gogo = !is_gogo;
+
+  // for debug
+  case '6':
+    machine_mode = 1;
     break;
 	}
 	glutPostRedisplay();
@@ -314,6 +374,21 @@ void draw_machine() {
   glVertex3d(-width / 2 - offset_x, -cell_height * 1.5 - offset_y, 0.1);
   glEnd();
 
+  // maxbet button
+  glColor3f(0.1, 0.1, 0.1);
+  GLUquadric* quad_bet_button = gluNewQuadric();
+  GLUquadric* quad_bet_button_top = gluNewQuadric();
+  glPushMatrix();
+  glTranslatef(-width / 2, -cell_height * 1.5 - offset_y, 1.5);
+  glRotatef(-90, 1.0, 0.0, 0.0);
+  gluCylinder(quad_bet_button, 0.7, 0.5, 0.1, 32, 32);
+  glTranslatef(0.0, 0.0, 0.1);
+  glColor3f(body_color[0], body_color[1], body_color[2]);
+  gluDisk(quad_bet_button_top, 0.0, 0.5, 100, 1);
+  glPopMatrix();
+  gluDeleteQuadric(quad_bet_button);
+  gluDeleteQuadric(quad_bet_button_top);
+
   // front
   glColor3d(silver[0], silver[1], silver[2]);
   glBegin(GL_POLYGON);
@@ -359,7 +434,7 @@ void draw_machine() {
   gluDeleteQuadric(quad);
 
   // gogo
-  if (is_gogo) {
+  if (machine_mode == 1) {
     glPushMatrix();
     glTranslatef(0.0, -cell_height * 1.5 - offset_y / 2 , 0.6);
     glColor3d(1.0, 1.0, 1.0);
@@ -388,7 +463,27 @@ void draw_machine() {
     gluCylinder(quad, 1.0, 0.8, 0.15, 32, 32);
     glPopMatrix();
   }
-  
+
+  // payout display
+  glColor3d(0.1, 0.1, 0.1);
+  glBegin(GL_POLYGON);
+  glVertex3d(- width / 2 + 0.5, -cell_height * 1.5 - offset_y + 0.4, 0.51);
+  glVertex3d(- width / 2 + 1.7, -cell_height * 1.5 - offset_y + 0.4, 0.51);
+  glVertex3d(- width / 2 + 1.7, -cell_height * 1.5 - offset_y + 1.6, 0.51);
+  glVertex3d(- width / 2 + 0.5, -cell_height * 1.5 - offset_y + 1.6, 0.51);
+  glEnd();
+
+  // credit display
+  glPushMatrix();
+  glTranslatef(-1.4, 0.0, 0.0);
+  glColor3d(0.1, 0.1, 0.1);
+  glBegin(GL_POLYGON);
+  glVertex3d(- width / 2 + 0.5, -cell_height * 1.5 - offset_y + 0.4, 0.51);
+  glVertex3d(- width / 2 + 1.7, -cell_height * 1.5 - offset_y + 0.4, 0.51);
+  glVertex3d(- width / 2 + 1.7, -cell_height * 1.5 - offset_y + 1.6, 0.51);
+  glVertex3d(- width / 2 + 0.5, -cell_height * 1.5 - offset_y + 1.6, 0.51);
+  glEnd(); 
+  glPopMatrix();
 }
 
 void set_texture() {
@@ -412,4 +507,71 @@ void set_texture() {
   cv::Mat input = cv::imread(inputFileNames[7], 1);
   glBindTexture(GL_TEXTURE_2D, g_TextureHandles[7]);
   glTexSubImage2D(GL_TEXTURE_2D, 0, (200 - input.cols) / 2, (150 - input.rows) / 2, input.cols, input.rows, GL_BGR, GL_UNSIGNED_BYTE, input.data);
+}
+
+
+/*
+Map between the index and reel image
+  0: seven
+  1: bar
+  2: tiger
+  3: grape
+  4: cherry
+  5: bell
+  6: clown
+*/
+int calc_score(int* comb){
+  int score = 0;
+  if (comb[0] == comb[1] && comb[1] == comb[2]){
+    if (comb[0] == 2) score = -1;
+    else if (comb[0] == 3) score = 14;
+    else if (comb[0] == 5) score = 14;
+    else if (comb[0] == 6) score = 10;
+  } else if (comb[0] == 4){
+    score = 7;
+  }
+  return score;
+}
+
+int calc_result(int* reel){
+  bool is_atari = false;
+  int score = 0;
+  int cell[9];
+  // 0 3 6
+  // 1 4 7
+  // 2 5 8
+  for (int i = 0; i < 3; i++){
+    for (int j = 0; j < 3; j++){
+      if (i == 0) cell[3 * i + j] = reel1_dict[(reel[i] + j) % 21];
+      else if (i == 1) cell[3 * i + j] = reel2_dict[(reel[i] + j) % 21];
+      else cell[3 * i + j] = reel3_dict[(reel[i] + j) % 21];
+    }
+  }
+
+  for (int i = 0; i < 3; i++){
+    // check row
+    if (cell[i] == cell[i+3] && cell[i+3] == cell[i+6]){
+      int comb[3] = {cell[i], cell[i+3], cell[i+6]};
+      score = calc_score(comb);
+      break;
+    }
+    // check diagonal
+    if (cell[0] == cell[4] && cell[4] == cell[8]){
+      int comb[3] = {cell[0], cell[4], cell[8]};
+      score = calc_score(comb);
+      break;
+    }
+    if (cell[2] == cell[4] && cell[4] == cell[6]){
+      int comb[3] = {cell[2], cell[4], cell[6]};
+      score = calc_score(comb);
+      break;
+    }
+    // check cherry
+    if (cell[0] == 4 || cell[1] == 4 || cell[2] == 4){
+      int comb[3] = {cell[0], cell[1], cell[2]};
+      score = calc_score(comb);
+      break;
+    }
+  }
+  return score;
 }
