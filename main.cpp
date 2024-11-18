@@ -5,6 +5,9 @@
 #include <random>
 #include <ctime>
 #include <GLUT/glut.h>
+#include <OpenAL/al.h>
+#include <OpenAL/alc.h>
+#include <alure.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -71,7 +74,6 @@ int main(int argc, char *argv[]){
 	return 0;
 }
 
-
 void init_GL(int argc, char *argv[]){
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH | GLUT_DOUBLE);
@@ -116,6 +118,8 @@ void glut_keyboard(unsigned char key, int x, int y){
 	case 'Q':
 	case '\033':
 		exit(0);
+
+  // left reel
   case '1':
     if(is_reeling[0]){
       if (machine_mode == 0) {
@@ -129,6 +133,8 @@ void glut_keyboard(unsigned char key, int x, int y){
       }
     }
     break;
+
+  // center reel
   case '2':
     if(is_reeling[1]){
       if (machine_mode == 0) {
@@ -142,11 +148,22 @@ void glut_keyboard(unsigned char key, int x, int y){
       }
     }
     break;
+
+  // right reel
   case '3':
     if(is_reeling[2]){
       if (machine_mode == 0) {
         is_reeling[2] = false;
-        if (dist(rng) < 0.1) machine_mode = 1;
+        if (dist(rng) < 0.9) {
+          machine_mode = 1;
+          char *filename = "sound/gogo.wav"; // ファイル名
+          alureInitDevice(NULL, NULL);
+          ALuint source;
+          alGenSources(1, &source); 
+          ALuint buffer = alureCreateBufferFromFile(filename);
+          alSourcei(source, AL_BUFFER, buffer);
+          alSourcePlay(source);
+        }
         credit += calc_result(reel); 
       } else if (machine_mode == 1){
         is_reeling[2] = false;
@@ -523,7 +540,7 @@ Map between the index and reel image
 int calc_score(int* comb){
   int score = 0;
   if (comb[0] == comb[1] && comb[1] == comb[2]){
-    if (comb[0] == 2) score = -1;
+    if (comb[0] == 2) score = 3;
     else if (comb[0] == 3) score = 14;
     else if (comb[0] == 5) score = 14;
     else if (comb[0] == 6) score = 10;
