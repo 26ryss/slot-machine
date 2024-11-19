@@ -4,6 +4,7 @@
 #include <math.h>
 #include <random>
 #include <ctime>
+#include <sstream>
 #include <GLUT/glut.h>
 #include <OpenAL/al.h>
 #include <OpenAL/alc.h>
@@ -17,7 +18,7 @@
 #define WINDOW_NAME "SLOT MACHINE"
 #define TEXTURE_WIDTH (360)
 #define TEXTURE_HEIGHT (150)
-#define PROB (0.5)
+#define PROB (0.01)
 
 std::mt19937 rng(static_cast<unsigned int>(std::time(0))); // 乱数生成器を初期化
 std::uniform_real_distribution<double> dist(0.0, 1.0); // 0.0から1.0までの一様分布
@@ -43,6 +44,7 @@ void set_texture();
 int calc_result(int* reel);
 int calc_score(int* comb);
 void play_sound(char* filename);
+void render_bitmap_string(float x, float y, void *font, const char *string);
 
 // グローバル変数
 double g_angle1 = 0.0;
@@ -273,6 +275,15 @@ void glut_display(){
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
+
+  std::ostringstream oss;
+  oss << "CREDIT: " << credit;
+  std::string creditStr = oss.str();
+
+  glPushMatrix();
+  glColor3f(1.0, 1.0, 1.0); // 白色
+  render_bitmap_string(-0.9f, 5.5f, GLUT_BITMAP_HELVETICA_18, creditStr.c_str());
+  glPopMatrix();
 
   // draw reel
   int reel_num;
@@ -603,4 +614,12 @@ void play_sound(char* filename){
   ALuint buffer = alureCreateBufferFromFile(filename);
   alSourcei(source, AL_BUFFER, buffer);
   alSourcePlay(source);
+}
+
+void render_bitmap_string(float x, float y, void *font, const char *string) {
+    const char *c;
+    glRasterPos2f(x, y);
+    for (c = string; *c != '\0'; c++) {
+        glutBitmapCharacter(font, *c);
+    }
 }

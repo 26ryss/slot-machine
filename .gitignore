@@ -33,6 +33,8 @@
 
 .vscode
 .DS_Store
+action.txt
 main
 /img
 /sound
+/.env
