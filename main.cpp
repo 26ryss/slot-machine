@@ -17,12 +17,12 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#define WINDOW_X (1200)
-#define WINDOW_Y (800)
+#define WINDOW_X (800)
+#define WINDOW_Y (600)
 #define WINDOW_NAME "SLOT MACHINE"
 #define TEXTURE_WIDTH (360)
 #define TEXTURE_HEIGHT (150)
-#define PROB (0.01)
+#define PROB (0.5)
 
 std::mt19937 rng(static_cast<unsigned int>(std::time(0))); // 乱数生成器を初期化
 std::uniform_real_distribution<double> dist(0.0, 1.0); // 0.0から1.0までの一様分布
