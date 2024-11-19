@@ -5,6 +5,10 @@
 #include <random>
 #include <ctime>
 #include <sstream>
+#include <fstream>
+#include <string>
+#include <thread>
+#include <chrono>
 #include <GLUT/glut.h>
 #include <OpenAL/al.h>
 #include <OpenAL/alc.h>
@@ -45,6 +49,12 @@ int calc_result(int* reel);
 int calc_score(int* comb);
 void play_sound(char* filename);
 void render_bitmap_string(float x, float y, void *font, const char *string);
+
+void left_reel();
+void center_reel();
+void right_reel();
+void maxbet_button();
+void pushdown_lever();
 
 // グローバル変数
 double g_angle1 = 0.0;
@@ -125,86 +135,27 @@ void glut_keyboard(unsigned char key, int x, int y){
 
   // left reel
   case '1':
-    if(is_reeling[0]){
-      play_sound("sound/button.wav");
-      if (machine_mode == 0) {
-        is_reeling[0] = false;
-      } else if (machine_mode == 1){
-        is_reeling[0] = false;
-        reel[0] = 0;
-      } else {
-        is_reeling[0] = false;
-        reel[0] = 2;
-      }
-    }
+    left_reel();
     break;
 
   // center reel
   case '2':
-    if(is_reeling[1] && !is_reeling[0]){
-      play_sound("sound/button.wav");
-      if (machine_mode == 0) {
-        is_reeling[1] = false;
-      } else if (machine_mode == 1){
-        is_reeling[1] = false;
-        reel[1] = 0;
-      } else {
-        is_reeling[1] = false;
-        reel[1] = 1;
-      }
-    }
+    center_reel();
     break;
 
   // right reel
   case '3':
-    if(is_reeling[2] && !is_reeling[1]){
-      play_sound("sound/button.wav");
-      if (machine_mode == 0) {
-        is_reeling[2] = false;
-        if (dist(rng) < PROB) {
-          machine_mode = 1;
-          play_sound("sound/gogo.wav");
-        }
-        credit += calc_result(reel); 
-      } else if (machine_mode == 1){
-        play_sound("sound/big.wav");
-        is_reeling[2] = false;
-        reel[2] = 0;
-        // 777 -> bonus mode
-        machine_mode = 2;
-        bonus_count = 0;
-      } else {
-        is_reeling[2] = false;
-        reel[2] = 4;
-        credit += calc_result(reel); 
-        bonus_count += calc_result(reel);
-        if (bonus_count >= 290) {
-          machine_mode = 0;
-          bonus_count = 0;
-        }
-      }
-      std::cout << "credit: " << credit << '\n';
-    }
+    right_reel();
     break;
   
   // maxbet button
   case '4':
-    if (!is_reeling[0] && !is_reeling[1] && !is_reeling[2] && is_bet == false && credit >= 3){
-      play_sound("sound/bet.wav");
-      is_bet = true;
-      credit -= 3;
-    }
+    maxbet_button();
     break;
 
   // pushdown lever
   case '5':
-    if (is_bet){
-      play_sound("sound/lever.wav");
-      is_reeling[0] = true;
-      is_reeling[1] = true;
-      is_reeling[2] = true;
-      is_bet = false;
-    }
+    pushdown_lever();
     break;
 
   // for debug
@@ -324,11 +275,34 @@ void glut_display(){
 void glut_idle(){
   static int counter = 0;
 
-  if (counter == 2){
+  if (counter % 2 == 0){
     if (is_reeling[0]) reel[0] = (reel[0] - 1 + 21) % 21;
     if (is_reeling[1]) reel[1] = (reel[1] - 1 + 21) % 21;
     if (is_reeling[2]) reel[2] = (reel[2] - 1 + 21) % 21;
-    counter = -1;
+  }
+
+  std::ifstream file("action.txt");
+  if (counter == 2){
+    if (file.is_open()) {
+      std::string line;
+      while (std::getline(file, line)) {
+        if (line != "0") {
+          if (line == "1" && !is_bet){
+            maxbet_button();
+          } else if (line == "2" && !is_reeling[0] && !is_reeling[1] && !is_reeling[2]){
+            pushdown_lever();
+          } else if (line == "3" && is_reeling[0]) {
+            left_reel();
+          } else if (line == "4" && !is_reeling[0] && is_reeling[1]) {
+            center_reel();
+          } else if (line == "5" && !is_reeling[1] && is_reeling[2]) {
+            right_reel();
+          }
+        }
+      }
+      file.close();
+    }
+    counter = 0;
   }
   counter++;
   glutPostRedisplay();
@@ -622,4 +596,82 @@ void render_bitmap_string(float x, float y, void *font, const char *string) {
     for (c = string; *c != '\0'; c++) {
         glutBitmapCharacter(font, *c);
     }
+}
+
+void left_reel() {
+  if (is_reeling[0]){
+    play_sound("sound/button.wav");
+    if (machine_mode == 0) {
+      is_reeling[0] = false;
+    } else if (machine_mode == 1){
+      is_reeling[0] = false;
+      reel[0] = 0;
+    } else {
+      is_reeling[0] = false;
+      reel[0] = 2;
+    }
+  }
+}
+
+void center_reel() {
+  if(is_reeling[1] && !is_reeling[0]){
+    play_sound("sound/button.wav");
+    if (machine_mode == 0) {
+      is_reeling[1] = false;
+    } else if (machine_mode == 1){
+      is_reeling[1] = false;
+      reel[1] = 0;
+    } else {
+      is_reeling[1] = false;
+      reel[1] = 1;
+    }
+  }
+}
+
+void right_reel() {
+  if(is_reeling[2] && !is_reeling[1]){
+    play_sound("sound/button.wav");
+    if (machine_mode == 0) {
+      is_reeling[2] = false;
+      if (dist(rng) < PROB) {
+        machine_mode = 1;
+        play_sound("sound/gogo.wav");
+      }
+      credit += calc_result(reel); 
+    } else if (machine_mode == 1){
+      play_sound("sound/big.wav");
+      is_reeling[2] = false;
+      reel[2] = 0;
+      // 777 -> bonus mode
+      machine_mode = 2;
+      bonus_count = 0;
+    } else {
+      is_reeling[2] = false;
+      reel[2] = 4;
+      credit += calc_result(reel); 
+      bonus_count += calc_result(reel);
+      if (bonus_count >= 290) {
+        machine_mode = 0;
+        bonus_count = 0;
+      }
+    }
+    is_bet = false;
+  }
+}
+
+void maxbet_button() {
+  if (!is_reeling[0] && !is_reeling[1] && !is_reeling[2] && is_bet == false && credit >= 3){
+    play_sound("sound/bet.wav");
+    is_bet = true;
+    credit -= 3;
+  }
+}
+
+void pushdown_lever() {
+  if (is_bet){
+    play_sound("sound/lever.wav");
+    is_reeling[0] = true;
+    is_reeling[1] = true;
+    is_reeling[2] = true;
+  }
 }
